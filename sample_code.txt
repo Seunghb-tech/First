@@ -1,32 +1,69 @@
+-- Timezone setup
+timedatectl set-timezone Asia/Seoul
+
 -- ROS2 추가설치
 sudo apt install python3-colcon-common-extensions
 sudo apt install python3-pip
 
--- .bashrc 추가설치
+-- .bashrc 추가설치(nano .bashrc)
 source /opt/ros/foxy/setup.bash
 source ~/ros2_ws/install/setup.bash
 source ~/ydlidar_ros2_ws/install/setup.bash
-export ROS_DOMAIN_ID=17
+export ROS_DOMAIN_ID=17 # 변경 필요
 source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash
 
--- minimum Python Node 만들기
+
+** raspberry pi : camera enable을 위해 다음 파일 끝에 start_x=1과 gpu_mem=128을 추가
+sudo nano /boot/firmware/config.txt
+
+-- install camera package
+sudo apt install ros-foxy-image-tools
+source ~/.bashrc
+ros2 run image_tools cam2image
+ros2 run image_tools showimage
+
+--install lidar package
+mkdir -p ~/ydlidar_ros2_ws/src
+cd ~/ydlidar_ros2_ws/src
+[sudo apt install git]
+git clone https://github.com/YDLIDAR/ydlidar_ros2
+cd .. 
+colcon build --symlink-install
+colcon build --symlink-install
+
+cd src/ydlidar_ros2/params/
+nano ydlidar.yaml  [parameters 수정: baudrate: 128000,  samp_rate: 5]
+cd ../../..
+chmod 0777 src/ydlidar_ros2/startup/*
+sudo sh src/ydlidar_ros2/startup/initenv.sh
+source install/setup.bash
+$ ros2 launch ydlidar ydlidar_launch.py
+$ ros2 run ydldiar ydlidar_client
+
+** 1. hocarmini camera 및 lidar 출판(publish)
+<hocarmini : /image topic> ros2 run image_tools cam2image
+<hocarmini : /scan topic> ros2 launch ydlidar ydlidar_launch.py
+
+** 2. hocarmini node 구동시키기
+[<hocarmini> pip3 install RPi.GPIO]
+sudo chmod og+rwx /dev/gpio* 
+ros2 run hocarmini_pkg raspi_move  
+
+** 3. 차선 및 장애물 검출하기
+<PC> ros2 topic list
+<PC> [pip3 install opencv-python]
+<pc> ros2 run hocarmini_control_pkg hocar_control_node --ros-args -p hocar_speed:=50.0
+
+
+--실습: minimum Python Node 만들기
 mkdir -p ros2_ws/src && cd ~/ros2_ws/src
-ros2 pkg create my_tutorial_pkg --build-type ament_python --dependencies rclpy example_interfaces 
-cd my_tutorial_pkg/my_tutorial_pkg
+ros2 pkg create my_robot_tutorials --build-type ament_python --dependencies rclpy std_msgs 
+cd my_robot_tutorials/my_robot_tutorials
 touch my_python_node.py
-chmod +x my_python_node.py
-nano my_python_node.py  (아래 code1 copy & paste) 
+nano my_python_node.py
+cd .. && tree 
 
-cd ..
-nano setup.py  (실행파일 설정: 'my_node = my_tutorial_pkg.my_python_node:main' ) 
-[cd .. && tree] 
-
-이동: cd ~/ros2_ws/
-빌드: colcon build --packages-select my_tutorial_pkg --symlink-install 
-소싱: source install/setup.bash
-실행: ros2 run my_tutorial_pkg my_node
-
--- code1
+-- code1 : node 실습
 import rclpy
 from rclpy.node import Node
 
@@ -40,7 +77,7 @@ def main(args=None):
 if __name__ == '__main__':
     main()
 
--- code2
+-- code2 : OOP node 실습
 import rclpy
 from rclpy.node import Node
 
@@ -66,30 +103,7 @@ if __name__ == '__main__':
     main()
 
 
--- install camera package
-sudo apt install ros-foxy-image-tools
-ros2 run image_tools cam2image
-ros2 run image_tools showimage
-
---install lidar package
-mkdir -p ~/ydlidar_ros2_ws/src
-cd ~/ydlidar_ros2_ws/src
-[sudo apt install git]
-git clone https://github.com/YDLIDAR/ydlidar_ros2
-cd .. 
-colcon build --symlink-install
-colcon build --symlink-install
-
-cd src/ydlidar_ros2/params/
-nano ydlidar.yaml  [parameters 수정]
-cd ../../..
-chmod 0777 src/ydlidar_ros2/startup/*
-sudo sh src/ydlidar_ros2/startup/initenv.sh
-source install/setup.bash
-$ ros2 launch ydlidar ydlidar_launch.py
-$ ros2 run ydldiar ydlidar_client
-
---code 3 : robot_news_station.py
+--code 3 : publisher node 실습 (robot_news_station.py)
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
@@ -99,15 +113,14 @@ class RobotNewsStationNode(Node):
     def __init__(self):
         super().__init__("robot_news_station")
 
-        self.robot_name_ = "C3PO"
+        self.robot_name_ = "Honam"
         self.publisher_ = self.create_publisher(String, "robot_news", 10)
         self.timer_ = self.create_timer(0.5, self.publish_news)
         self.get_logger().info("Robot News Station has been started")
 
     def publish_news(self):
         msg = String()
-        msg.data = "Hi, this is " + \
-            str(self.robot_name_) + " from the robot news station."
+        msg.data = "Hi, this is " + str(self.robot_name_) + " from the robot news station."
         self.publisher_.publish(msg)
 
 def main(args=None):
@@ -119,7 +132,7 @@ def main(args=None):
 if __name__ == "__main__":
     main()
 
---code4 : smartphone.py
+--code4 : subscriber node 실습(smartphone.py)
 
 #!/usr/bin/env python3
 import rclpy
@@ -170,33 +183,6 @@ class RobotNewsStationNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = RobotNewsStationNode()
-    rclpy.spin(node)
-    rclpy.shutdown()
-
-if __name__ == "__main__":
-    main()
-
-
--- code4 : smartphone.py
-
-#!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-from example_interfaces.msg import String
-
-class SmartphoneNode(Node):
-    def __init__(self):
-        super().__init__("smartphone")
-        self.subscriber_ = self.create_subscription(
-            String, "robot_news", self.callback_robot_news, 10)
-        self.get_logger().info("Smartphone has been started.")
-
-    def callback_robot_news(self, msg):
-        self.get_logger().info(msg.data)
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = SmartphoneNode()
     rclpy.spin(node)
     rclpy.shutdown()
 
