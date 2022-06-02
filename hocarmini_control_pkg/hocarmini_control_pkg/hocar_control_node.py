@@ -44,7 +44,8 @@ class HocarminiController(Node):
     def __init__(self):
         super().__init__('hocarmini_controller')
         self.steer_ = 0.0  # integer
-        self.speed_ = 70.0  # float
+        self.declare_parameter("hocar_speed", 80.0)  # float
+        self.speed_ = self.get_parameter("hocar_speed").value
         self.front_distance_ = 0.0
         self.image_subscriber_ = self.create_subscription(Image, "image", self.image_callback, 10)
         self.lidar_subscriber_ = self.create_subscription(
@@ -78,7 +79,7 @@ class HocarminiController(Node):
     def hocarmini_control(self):
         # Logic to move
         if self.front_distance_ < 0.3:
-            self.cmd_.linear.x = 5.0 # almost stop          
+            self.cmd_.linear.x = 5.0           
             self.get_logger().info("obstacle is detected at front")
         else:
             self.cmd_.linear.x = self.speed_
