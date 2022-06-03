@@ -1,0 +1,108 @@
+-- ROS2 image publisher & subscriber
+ref: https://automaticaddison.com/getting-started-with-opencv-in-ros-2-foxy-fitzroy-python/ 
+
+mkdir -p ros2_ws/src && cd ros2_ws/src
+ros2 pkg create --build-type ament_python cv_basics --dependencies rclpy image_transport sensor_msgs std_msgs
+cd cv_basics/cv_basics/
+touch webcam_pub.py
+chmod +x webcam_pub.py 
+touch webcam_sub.py 
+chmod +x webcam_sub.py 
+
+cd ..
+nano setup.py -->  
+    entry_points={
+        'console_scripts': [
+            'webcam_publisher = cv_basics.webcam_pub:main',
+            'webcam_subscriber = cv_basics.webcam_sub:main'
+        ],
+    },
+
+pip3 list | grep opencv-python  --> No :  pip3 install opencv-python  # version: 4.5.5.64
+pip3 install -U numpy  # version : 1.22.4
+pip3 list | grep numpy 
+
+[sudo apt install python3-rosdep2]
+rosdep install -i --from-path src/cv_basics --rosdistro foxy -y
+
+colcon build --packages-select cv_basics --symlink-install 
+source install/setup.bash
+ros2 run cv_basics webcam_publisher
+
+<another tty>
+source install/setup.bash
+ros2 run cv_basics webcam_subscriber
+
+--1. image publisher
+#!/usr/bin/env python3
+import rclpy 
+from rclpy.node import Node 
+from sensor_msgs.msg import Image 
+from cv_bridge import CvBridge 
+import cv2 
+ 
+class ImagePublisher(Node):
+  def __init__(self):
+    super().__init__('image_publisher')
+    self.publisher_ = self.create_publisher(Image, 'video_frames', 10)
+    timer_period = 0.1  # seconds
+    self.timer = self.create_timer(timer_period, self.timer_callback)
+
+    self.cap = cv2.VideoCapture(0)
+    self.br = CvBridge()
+   
+  def timer_callback(self):
+    ret, frame = self.cap.read()          
+    if ret == True:
+      self.publisher_.publish(self.br.cv2_to_imgmsg(frame, encoding='bgr8'))
+    self.get_logger().info('Publishing video frame')
+  
+def main(args=None):  
+  rclpy.init(args=args)
+  image_publisher = ImagePublisher()  
+  try:
+    rclpy.spin(image_publisher)
+  except KeyboardInterrupt:
+    print("KeyboardInterrupt has been done")
+
+  image_publisher.destroy_node()
+  rclpy.shutdown()
+  
+if __name__ == '__main__':
+  main()
+
+--2. Image subscriber
+#!/usr/bin/env python3
+import rclpy  
+from rclpy.node import Node  
+from sensor_msgs.msg import Image 
+from cv_bridge import CvBridge  
+import cv2  
+
+class ImageSubscriber(Node):
+    def __init__(self):
+        super().__init__('image_subscriber')
+        self.subscription = self.create_subscription(
+            Image, 'video_frames', self.listener_callback, 10)
+        self.subscription # prevent unused variable warning
+        self.br = CvBridge()
+
+    def listener_callback(self, data):
+        self.get_logger().info('Receiving video frame')
+        current_frame = self.br.imgmsg_to_cv2(data)
+        cv2.imshow("camera", current_frame)
+        cv2.waitKey(1)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    image_subscriber = ImageSubscriber()
+    try:
+        rclpy.spin(image_subscriber)
+    except KeyboardInterrupt:
+        print("KeyboardInterrupt has been done")
+    image_subscriber.destroy_node()
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
