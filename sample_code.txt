@@ -42,7 +42,7 @@ $ ros2 run ydldiar ydlidar_client
 
 ** 1. hocarmini camera 및 lidar 출판(publish)
 <hocarmini : /image topic> ros2 run image_tools cam2image
-<hocarmini : /scan topic> ros2 launch ydlidar ydlidar_launch.py
+<hocarmini : /scan topic> ros2 launch ydlidar ydlidar_launch.py 또는  ros2 launch ydlidar ydlidar_node
 
 ** 2. hocarmini node 구동시키기
 [<hocarmini> pip3 install RPi.GPIO]
