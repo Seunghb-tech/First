@@ -37,7 +37,7 @@ cd ../../..
 chmod 0777 src/ydlidar_ros2/startup/*
 sudo sh src/ydlidar_ros2/startup/initenv.sh
 source install/setup.bash
-$ ros2 launch ydlidar ydlidar_launch.py
+$ ros2 launch ydlidar ydlidar_launch.py 또는  ros2 launch ydlidar ydlidar_node
 $ ros2 run ydldiar ydlidar_client
 
 ** 1. hocarmini camera 및 lidar 출판(publish)
